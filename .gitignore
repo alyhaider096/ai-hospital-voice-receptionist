@@ -32,6 +32,9 @@ Thumbs.db
 
 # Local data and logs
 *.log
+*.db
+*.sqlite
+*.sqlite3
 logs/
 tmp/
 uploads/
@@ -40,4 +43,3 @@ exports/
 # Docker/local runtime
 postgres-data/
 redis-data/
-
