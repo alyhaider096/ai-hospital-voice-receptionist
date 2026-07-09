@@ -19,6 +19,8 @@ uvicorn app.main:app --reload
 
 ```txt
 GET  /health
+POST /auth/login
+POST /auth/logout
 POST /vapi/tools/match-doctor
 POST /vapi/tools/check-availability
 POST /vapi/tools/book-appointment
@@ -27,6 +29,7 @@ GET  /admin/dashboard/summary
 GET  /admin/appointments
 PATCH /admin/appointments/{id}
 GET  /admin/doctors
+GET  /admin/call-logs
 ```
 
 Vapi endpoints require:
@@ -50,6 +53,8 @@ session-cookie auth.
 pytest
 ```
 
-Current tests cover Vapi auth, doctor matching, emergency routing,
-availability, booking idempotency, double-booking rejection, PII redaction, and
-admin summary auth.
+Current tests cover Vapi auth, admin auth, doctor matching, emergency routing,
+availability, schedule exceptions, booking idempotency, double-booking
+rejection, PII encryption/redaction, call-log privacy, and admin audit logging.
+
+Latest QA report: `../docs/QA_REPORT_2026-07-10.md`.

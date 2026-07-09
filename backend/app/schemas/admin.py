@@ -1,4 +1,4 @@
-from datetime import date, time
+from datetime import date, datetime, time
 
 from pydantic import BaseModel
 
@@ -32,3 +32,14 @@ class DoctorListItem(BaseModel):
     department: str
     active: bool
 
+
+class CallLogListItem(BaseModel):
+    id: str
+    vapi_call_id: str
+    channel: str
+    status: str
+    has_summary: bool
+    has_transcript: bool
+    started_at: datetime | None
+    ended_at: datetime | None
+    created_at: datetime

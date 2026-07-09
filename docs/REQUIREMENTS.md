@@ -109,7 +109,9 @@ staff a dashboard for operational follow-up.
 [x] Same slot cannot be booked twice
 [x] Same Vapi retry does not duplicate appointment
 [x] Unauthorized Vapi request returns 401
-[ ] Appointment appears in dashboard
+[x] Admin auth login works
+[x] Appointment appears in admin appointment API
 [x] Call summary is stored by backend
+[x] Call log appears in admin call-log API without exposing raw summary/transcript
 [x] Vapi tool audit redacts raw PII
 ```

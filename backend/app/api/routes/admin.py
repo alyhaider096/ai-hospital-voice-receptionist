@@ -11,6 +11,7 @@ from app.models.patient import Patient
 from app.schemas.admin import (
     AppointmentListItem,
     AppointmentStatusUpdate,
+    CallLogListItem,
     DashboardSummary,
     DoctorListItem,
 )
@@ -111,4 +112,23 @@ def list_doctors(db: DbSession) -> list[DoctorListItem]:
             active=doctor.active,
         )
         for doctor in rows
+    ]
+
+
+@router.get("/call-logs", response_model=list[CallLogListItem])
+def list_call_logs(db: DbSession) -> list[CallLogListItem]:
+    rows = db.scalars(select(CallLog).order_by(CallLog.created_at.desc())).all()
+    return [
+        CallLogListItem(
+            id=call_log.id,
+            vapi_call_id=call_log.vapi_call_id,
+            channel=call_log.channel,
+            status=call_log.status,
+            has_summary=call_log.summary_encrypted is not None,
+            has_transcript=call_log.transcript_encrypted is not None,
+            started_at=call_log.started_at,
+            ended_at=call_log.ended_at,
+            created_at=call_log.created_at,
+        )
+        for call_log in rows
     ]

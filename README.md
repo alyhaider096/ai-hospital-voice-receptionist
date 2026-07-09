@@ -91,8 +91,8 @@ system and can be added later only as an export/integration.
 ## Local Setup
 
 The backend foundation is implemented with FastAPI, SQLAlchemy models, Alembic
-migration, seed data, Vapi tool endpoints, protected admin read/update
-endpoints, and focused tests.
+migration, seed data, Vapi tool endpoints, auth endpoints, protected admin
+read/update endpoints, and focused tests.
 
 Planned local flow:
 
