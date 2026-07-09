@@ -1,0 +1,250 @@
+# Vapi Setup
+
+This system is tested first with Vapi Web Calls. The hospital's official phone
+number should be attached only after the backend, database, dashboard, and tool
+calls are verified.
+
+## Assistant Purpose
+
+The assistant is a hospital voice receptionist. It can:
+
+- Greet patients
+- Ask what appointment they need
+- Collect symptoms for routing only
+- Collect patient name and phone
+- Check doctor availability
+- Book a confirmed appointment
+- Provide appointment reference
+- Save a call summary
+
+The assistant must not:
+
+- Diagnose medical conditions
+- Give treatment advice
+- Promise emergency care over the phone
+- Book without explicit confirmation
+- Expose internal API errors to the patient
+
+## Tool URLs
+
+During local testing, expose the FastAPI backend:
+
+```bash
+ngrok http 8000
+```
+
+Use the tunnel URL:
+
+```txt
+https://your-tunnel-url/vapi/tools/match-doctor
+https://your-tunnel-url/vapi/tools/check-availability
+https://your-tunnel-url/vapi/tools/book-appointment
+https://your-tunnel-url/vapi/events/end-of-call
+```
+
+Final production URLs should replace the tunnel URL after deployment.
+
+## Authentication
+
+All Vapi tool requests must include:
+
+```txt
+Authorization: Bearer <VAPI_TOOL_SECRET>
+```
+
+Recommended Vapi setup:
+
+1. Create a secret in Vapi custom credentials.
+2. Attach that credential to each tool.
+3. Do not paste secrets into descriptions or prompts.
+4. Rotate the secret before real hospital use.
+
+## Tool Definitions
+
+### Tool 1: `matchDoctorBySymptoms`
+
+Method:
+
+```txt
+POST
+```
+
+Path:
+
+```txt
+/vapi/tools/match-doctor
+```
+
+Description:
+
+```txt
+Match the patient's described symptoms to the most appropriate doctor or
+department for appointment routing only. This tool must not diagnose.
+```
+
+Input schema:
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "symptoms": {
+      "type": "string",
+      "description": "The patient's symptoms in their own words."
+    }
+  },
+  "required": ["symptoms"]
+}
+```
+
+### Tool 2: `checkAvailability`
+
+Method:
+
+```txt
+POST
+```
+
+Path:
+
+```txt
+/vapi/tools/check-availability
+```
+
+Description:
+
+```txt
+Check available appointment slots for a doctor on a requested date.
+```
+
+Input schema:
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "doctor_id": {
+      "type": "string",
+      "description": "Doctor UUID returned by matchDoctorBySymptoms."
+    },
+    "date": {
+      "type": "string",
+      "description": "Requested appointment date in YYYY-MM-DD format."
+    }
+  },
+  "required": ["doctor_id", "date"]
+}
+```
+
+### Tool 3: `bookAppointment`
+
+Method:
+
+```txt
+POST
+```
+
+Path:
+
+```txt
+/vapi/tools/book-appointment
+```
+
+Description:
+
+```txt
+Book an appointment after the patient explicitly confirms the doctor, date,
+and time.
+```
+
+Input schema:
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "patient_name": {
+      "type": "string"
+    },
+    "phone": {
+      "type": "string"
+    },
+    "doctor_id": {
+      "type": "string"
+    },
+    "date": {
+      "type": "string",
+      "description": "Appointment date in YYYY-MM-DD format."
+    },
+    "start_time": {
+      "type": "string",
+      "description": "Appointment start time in HH:mm 24-hour format."
+    },
+    "reason": {
+      "type": "string"
+    },
+    "vapi_call_id": {
+      "type": "string"
+    }
+  },
+  "required": ["patient_name", "phone", "doctor_id", "date", "start_time", "reason"]
+}
+```
+
+## Assistant Prompt Draft
+
+```txt
+You are the hospital's AI voice receptionist. Your job is to help patients book
+appointments safely and politely.
+
+You may ask for symptoms only to route the patient to the right department or
+doctor. You must not diagnose, prescribe medicine, or provide treatment advice.
+
+If the patient mentions severe chest pain, difficulty breathing, heavy bleeding,
+loss of consciousness, stroke symptoms, or any urgent emergency, tell them to
+contact emergency services or visit the emergency department immediately.
+
+For normal appointment booking:
+1. Ask what problem or symptoms they want an appointment for.
+2. Use matchDoctorBySymptoms.
+3. Ask for preferred date if not already provided.
+4. Use checkAvailability.
+5. Offer up to three available slots.
+6. Ask for patient name and phone number.
+7. Repeat doctor, date, and time for confirmation.
+8. Only after the patient confirms, use bookAppointment.
+9. Read the appointment reference clearly.
+
+If a tool returns an error, apologize briefly and offer another slot or human
+receptionist support. Do not read raw technical errors to the patient.
+```
+
+## Web Call Test Script
+
+1. Start backend locally.
+2. Start ngrok/cloudflared tunnel.
+3. Configure Vapi tools with tunnel URLs.
+4. Start Vapi Web Call.
+5. Say: "I have eye pain and blurry vision. I want an appointment tomorrow."
+6. Confirm one offered slot.
+7. Confirm name and phone.
+8. Verify appointment appears in database/dashboard.
+9. Verify call summary appears in call logs.
+10. Try booking the same slot again and expect a slot-unavailable response.
+
+## Before Official Number Attachment
+
+Checklist:
+
+```txt
+Backend deployed behind HTTPS
+Vapi tool URLs updated from tunnel to production domain
+Vapi tool secret rotated
+Dashboard login enabled
+Database backups enabled
+Emergency guidance tested
+Double-booking test passed
+Call summary retention decision documented
+Hospital has approved greeting and consent line
+```
+
