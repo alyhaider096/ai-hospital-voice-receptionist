@@ -4,9 +4,9 @@ AI-powered hospital voice receptionist using Vapi, FastAPI, PostgreSQL, and
 Next.js to route patients, check doctor availability, book appointments, and
 maintain official appointment and call records.
 
-This repository is planned as a private official-system monorepo. The first
-test path is Vapi Web Calls. The hospital's own phone number can be attached
-after the backend, database, Vapi tools, and dashboard are verified.
+This repository is a private official-system monorepo. The first test path is
+Vapi Web Calls. The hospital's own phone number can be attached after the
+backend, database, Vapi tools, and dashboard are verified.
 
 ## Architecture
 
@@ -90,8 +90,9 @@ system and can be added later only as an export/integration.
 
 ## Local Setup
 
-This repo currently contains the implementation skeleton and official system
-documentation. Backend and frontend code will be added in the next build pass.
+The backend foundation is implemented with FastAPI, SQLAlchemy models, Alembic
+migration, seed data, Vapi tool endpoints, protected admin read/update
+endpoints, and focused tests.
 
 Planned local flow:
 
@@ -190,8 +191,8 @@ See [docs/SECURITY_RISK_REGISTER.md](docs/SECURITY_RISK_REGISTER.md).
 
 ## Demo Status
 
-Current status: repo skeleton and official documentation.
+Current status: backend foundation implemented and tested.
 
-Next milestone: working FastAPI backend with PostgreSQL models, migrations,
-seed doctors, availability checks, booking, and double-booking protection.
-
+Next milestone: connect the backend to a live local PostgreSQL database, run
+the seed script, expose it through a tunnel, and attach the three Vapi Web Call
+tools for an end-to-end voice booking test.

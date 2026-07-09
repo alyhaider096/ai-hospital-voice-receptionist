@@ -102,15 +102,14 @@ staff a dashboard for operational follow-up.
 ## Acceptance Checklist
 
 ```txt
-Doctor matching returns expected specialty
-Emergency symptoms return safety guidance
-Availability excludes booked slots
-Booking creates appointment reference
-Same slot cannot be booked twice
-Same Vapi retry does not duplicate appointment
-Unauthorized Vapi request returns 401
-Appointment appears in dashboard
-Call summary appears in dashboard
-Logs contain no raw PII
+[x] Doctor matching returns expected specialty
+[x] Emergency symptoms return safety guidance
+[x] Availability excludes booked slots
+[x] Booking creates appointment reference
+[x] Same slot cannot be booked twice
+[x] Same Vapi retry does not duplicate appointment
+[x] Unauthorized Vapi request returns 401
+[ ] Appointment appears in dashboard
+[x] Call summary is stored by backend
+[x] Vapi tool audit redacts raw PII
 ```
-

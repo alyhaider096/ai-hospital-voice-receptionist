@@ -214,13 +214,13 @@ Dashboard rules:
 
 ## Build Phases
 
-1. Repo and docs
-2. Backend foundation
-3. Database models and migrations
-4. Seed data
-5. Vapi tools
-6. Appointment engine
-7. API tests
+1. Repo and docs - complete
+2. Backend foundation - complete
+3. Database models and migrations - complete
+4. Seed data - complete
+5. Vapi tools - complete
+6. Appointment engine - complete
+7. API tests - complete
 8. Vapi Web Call test
 9. Dashboard
 10. Security hardening
@@ -235,4 +235,3 @@ Dashboard rules:
 - Unauthorized Vapi tool calls return `401`.
 - Logs contain no raw PII or secrets.
 - Emergency symptoms do not produce normal appointment advice.
-
