@@ -27,10 +27,11 @@ The assistant must not:
 
 ## Tool URLs
 
-During local testing, expose the FastAPI backend:
+During local testing, expose the FastAPI backend. The backend usually runs on
+`8001` in this workspace because `8000` may already be occupied:
 
 ```bash
-ngrok http 8000
+ngrok http 8001
 ```
 
 Use the tunnel URL:
@@ -43,6 +44,10 @@ https://your-tunnel-url/vapi/events/end-of-call
 ```
 
 Final production URLs should replace the tunnel URL after deployment.
+
+For the exact dashboard tool definitions, use
+`docs/vapi-tools.template.json`. For the step-by-step Web Call test flow, use
+`docs/VAPI_WEB_CALL_RUNBOOK.md`.
 
 ## Authentication
 
@@ -247,4 +252,3 @@ Double-booking test passed
 Call summary retention decision documented
 Hospital has approved greeting and consent line
 ```
-

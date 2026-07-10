@@ -1,0 +1,98 @@
+{
+  "baseUrl": "https://YOUR-TUNNEL-OR-PRODUCTION-URL",
+  "authentication": {
+    "type": "bearer",
+    "header": "Authorization",
+    "value": "Bearer <VAPI_TOOL_SECRET>",
+    "recommendedStorage": "Vapi custom credential, not inline prompt text"
+  },
+  "tools": [
+    {
+      "name": "matchDoctorBySymptoms",
+      "type": "apiRequest",
+      "method": "POST",
+      "url": "{{baseUrl}}/vapi/tools/match-doctor",
+      "description": "Match the patient's symptoms to the most appropriate doctor or department for appointment routing only. This tool must not diagnose.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "symptoms": {
+            "type": "string",
+            "description": "The patient's symptoms in their own words."
+          }
+        },
+        "required": ["symptoms"]
+      }
+    },
+    {
+      "name": "checkAvailability",
+      "type": "apiRequest",
+      "method": "POST",
+      "url": "{{baseUrl}}/vapi/tools/check-availability",
+      "description": "Check available appointment slots for a doctor on a requested date.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "doctor_id": {
+            "type": "string",
+            "description": "Doctor UUID returned by matchDoctorBySymptoms."
+          },
+          "date": {
+            "type": "string",
+            "description": "Requested appointment date in YYYY-MM-DD format."
+          }
+        },
+        "required": ["doctor_id", "date"]
+      }
+    },
+    {
+      "name": "bookAppointment",
+      "type": "apiRequest",
+      "method": "POST",
+      "url": "{{baseUrl}}/vapi/tools/book-appointment",
+      "description": "Book an appointment after the patient explicitly confirms the doctor, date, and time.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "patient_name": {
+            "type": "string",
+            "description": "Patient's full name."
+          },
+          "phone": {
+            "type": "string",
+            "description": "Patient phone number, preferably in international format."
+          },
+          "doctor_id": {
+            "type": "string",
+            "description": "Doctor UUID returned by matchDoctorBySymptoms."
+          },
+          "date": {
+            "type": "string",
+            "description": "Appointment date in YYYY-MM-DD format."
+          },
+          "start_time": {
+            "type": "string",
+            "description": "Appointment start time in HH:mm 24-hour format."
+          },
+          "reason": {
+            "type": "string",
+            "description": "Short appointment reason from the patient."
+          },
+          "vapi_call_id": {
+            "type": "string",
+            "description": "Vapi call ID when available, used for idempotency."
+          }
+        },
+        "required": ["patient_name", "phone", "doctor_id", "date", "start_time", "reason"]
+      }
+    },
+    {
+      "name": "endOfCall",
+      "type": "serverEvent",
+      "method": "POST",
+      "url": "{{baseUrl}}/vapi/events/end-of-call",
+      "description": "Save call summary metadata after the call ends. Store transcript only if consent and retention policy allow it."
+    }
+  ]
+}
+
