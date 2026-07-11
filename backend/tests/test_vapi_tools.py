@@ -81,7 +81,7 @@ def test_emergency_symptoms_do_not_return_normal_booking(client: TestClient, vap
     assert "emergency" in data["safety_note"].lower()
 
 
-def test_check_availability_rejects_past_date(
+def test_check_availability_returns_next_options_for_past_date(
     client: TestClient,
     db_session: Session,
     vapi_headers: dict[str, str],
@@ -95,8 +95,13 @@ def test_check_availability_rejects_past_date(
         json={"doctor_id": doctor.id, "date": (date.today() - timedelta(days=1)).isoformat()},
     )
 
-    assert response.status_code == 422
-    assert response.json()["error"]["message"] == "Appointment date cannot be in the past."
+    assert response.status_code == 200
+    data = response.json()
+    assert data["available_slots"] == []
+    assert data["requested_date_was_past"] is True
+    assert "past" in data["message"]
+    assert data["next_available_dates"]
+    assert data["earliest_available_start_time"]
 
 
 def test_check_availability_rejects_unknown_doctor(
@@ -190,6 +195,8 @@ def test_check_availability_returns_next_dates_and_handoff_for_urgent_no_slot(
     assert data["available_slots"] == []
     assert data["handoff_recommended"] is True
     assert "human receptionist" in data["safe_handoff_note"]
+    assert "Next available options" in data["message"]
+    assert data["next_available_summary"]
     assert data["next_available_dates"]
     assert data["next_available_dates"][0]["first_available_slot"]["start_time"]
 

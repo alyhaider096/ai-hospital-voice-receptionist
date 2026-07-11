@@ -69,6 +69,7 @@ def get_available_slots(db: Session, doctor_id: str, requested_date: date) -> li
     }
 
     slots: list[time] = []
+    now = datetime.now()
     for schedule in schedules:
         cursor = _combine(requested_date, schedule.start_time)
         end = _combine(requested_date, schedule.end_time)
@@ -81,7 +82,8 @@ def get_available_slots(db: Session, doctor_id: str, requested_date: date) -> li
                 and _overlaps(slot_start, slot_end, exception.start_time, exception.end_time)
                 for exception in exceptions
             )
-            if not blocked and slot_start not in booked_times:
+            in_future = requested_date > date.today() or cursor > now
+            if in_future and not blocked and slot_start not in booked_times:
                 slots.append(slot_start)
             cursor += step
 
@@ -93,7 +95,8 @@ def get_available_slots(db: Session, doctor_id: str, requested_date: date) -> li
         step = timedelta(minutes=30)
         while cursor + step <= end:
             slot_start = cursor.time()
-            if slot_start not in booked_times and slot_start not in slots:
+            in_future = requested_date > date.today() or cursor > now
+            if in_future and slot_start not in booked_times and slot_start not in slots:
                 slots.append(slot_start)
             cursor += step
 
@@ -112,8 +115,9 @@ def get_next_available_dates(
     limit: int = 3,
 ) -> list[SuggestedAvailability]:
     suggestions: list[SuggestedAvailability] = []
+    search_start = max(after_date, date.today() - timedelta(days=1))
     for offset in range(1, days_to_scan + 1):
-        candidate_date = after_date + timedelta(days=offset)
+        candidate_date = search_start + timedelta(days=offset)
         slots = get_available_slots(db, doctor_id, candidate_date)
         if not slots:
             continue

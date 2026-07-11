@@ -37,6 +37,11 @@ class CheckAvailabilityResponse(BaseModel):
     date: date
     available_slots: list[AvailableSlot]
     next_available_dates: list[SuggestedAvailability] = Field(default_factory=list)
+    requested_date_was_past: bool = False
+    earliest_available_date: date | None = None
+    earliest_available_start_time: str | None = None
+    earliest_available_display_time: str | None = None
+    next_available_summary: str | None = None
     handoff_recommended: bool = False
     message: str = "Available slots found."
     safe_handoff_note: str | None = None

@@ -45,10 +45,15 @@
         "required": ["doctor_id", "date"]
       },
       "responseFields": [
+        "message",
         "available_slots",
         "next_available_dates",
+        "next_available_summary",
+        "requested_date_was_past",
+        "earliest_available_date",
+        "earliest_available_start_time",
+        "earliest_available_display_time",
         "handoff_recommended",
-        "message",
         "safe_handoff_note"
       ]
     },

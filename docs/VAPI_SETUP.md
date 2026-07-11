@@ -146,8 +146,14 @@ Input schema:
 Important response fields:
 
 ```txt
+message               -> plain spoken availability result; use this first
 available_slots       -> slots for the requested date
 next_available_dates -> nearest future dates when requested date has no slots
+next_available_summary -> plain text summary of next available dates
+requested_date_was_past -> true if Vapi sent an old relative date
+earliest_available_date -> first future date available
+earliest_available_start_time -> first future time in HH:mm
+earliest_available_display_time -> first future time for speech
 handoff_recommended  -> true when no slot is available for today/tomorrow
 safe_handoff_note    -> receptionist handoff instruction for urgent no-slot calls
 ```
@@ -232,12 +238,14 @@ For normal appointment booking:
 9. Read the appointment reference clearly.
 
 If checkAvailability returns no available_slots:
-1. If next_available_dates are present, offer the nearest date and time.
-2. If handoff_recommended is true, say: "I do not see a standard slot for that
+1. First read and follow the returned message field.
+2. If earliest_available_date and earliest_available_display_time are present,
+   offer that option.
+3. If handoff_recommended is true, say: "I do not see a standard slot for that
    date. Since this sounds urgent, I can connect you with a human receptionist
    for assistance."
-3. Do not imply the patient is safe to wait.
-4. Do not diagnose or provide treatment instructions.
+4. Do not imply the patient is safe to wait.
+5. Do not diagnose or provide treatment instructions.
 
 If a tool returns an error, apologize briefly and offer another slot or human
 receptionist support. Do not read raw technical errors to the patient.
