@@ -119,7 +119,9 @@ Path:
 Description:
 
 ```txt
-Check available appointment slots for a doctor on a requested date.
+Check available appointment slots for a doctor on a requested date. If no
+standard slot is available, use the returned next_available_dates and
+handoff_recommended fields to guide the caller.
 ```
 
 Input schema:
@@ -139,6 +141,15 @@ Input schema:
   },
   "required": ["doctor_id", "date"]
 }
+```
+
+Important response fields:
+
+```txt
+available_slots       -> slots for the requested date
+next_available_dates -> nearest future dates when requested date has no slots
+handoff_recommended  -> true when no slot is available for today/tomorrow
+safe_handoff_note    -> receptionist handoff instruction for urgent no-slot calls
 ```
 
 ### Tool 3: `bookAppointment`
@@ -219,6 +230,14 @@ For normal appointment booking:
 7. Repeat doctor, date, and time for confirmation.
 8. Only after the patient confirms, use bookAppointment.
 9. Read the appointment reference clearly.
+
+If checkAvailability returns no available_slots:
+1. If next_available_dates are present, offer the nearest date and time.
+2. If handoff_recommended is true, say: "I do not see a standard slot for that
+   date. Since this sounds urgent, I can connect you with a human receptionist
+   for assistance."
+3. Do not imply the patient is safe to wait.
+4. Do not diagnose or provide treatment instructions.
 
 If a tool returns an error, apologize briefly and offer another slot or human
 receptionist support. Do not read raw technical errors to the patient.

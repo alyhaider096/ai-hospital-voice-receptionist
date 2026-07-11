@@ -1,12 +1,16 @@
+from datetime import date, datetime, timedelta, timezone
+
 from sqlalchemy import func, select
 
 from fastapi import APIRouter, Depends
 
 from app.api.deps import DbSession, require_admin_auth
+from app.core.security import pii_cipher
 from app.models.appointment import Appointment
 from app.models.audit_log import AuditLog
 from app.models.call_log import CallLog
 from app.models.doctor import Doctor
+from app.models.doctor_schedule import DoctorSchedule
 from app.models.patient import Patient
 from app.schemas.admin import (
     AppointmentListItem,
@@ -14,6 +18,7 @@ from app.schemas.admin import (
     CallLogListItem,
     DashboardSummary,
     DoctorListItem,
+    DoctorScheduleListItem,
 )
 from app.services.errors import NotFoundError, ValidationServiceError
 
@@ -28,32 +33,109 @@ ALLOWED_APPOINTMENT_STATUSES = {
     "rescheduled",
 }
 
+ACTIVE_APPOINTMENT_STATUSES = {"booked", "confirmed"}
+DAY_NAMES = {
+    1: "Monday",
+    2: "Tuesday",
+    3: "Wednesday",
+    4: "Thursday",
+    5: "Friday",
+    6: "Saturday",
+    7: "Sunday",
+}
+
+
+def _mask_phone(phone: str | None) -> str:
+    if not phone:
+        return "Not provided"
+    if len(phone) <= 5:
+        return "***"
+    return f"{phone[:3]}***{phone[-2:]}"
+
+
+def _appointment_end_time(start_time, duration_minutes: int):
+    return (datetime.combine(date.today(), start_time) + timedelta(minutes=duration_minutes)).time()
+
+
+def _call_duration_seconds(call_log: CallLog) -> int | None:
+    if call_log.started_at is None or call_log.ended_at is None:
+        return None
+    return max(0, int((call_log.ended_at - call_log.started_at).total_seconds()))
+
+
+def _appointment_item(appointment: Appointment, doctor: Doctor, patient: Patient) -> AppointmentListItem:
+    patient_name = pii_cipher.decrypt(patient.full_name_encrypted) or "Unknown patient"
+    patient_phone = pii_cipher.decrypt(patient.phone_encrypted)
+    reason = pii_cipher.decrypt(appointment.reason_encrypted)
+
+    return AppointmentListItem(
+        id=appointment.id,
+        appointment_ref=appointment.appointment_ref,
+        patient_id=patient.id,
+        patient_name=patient_name,
+        patient_phone_masked=_mask_phone(patient_phone),
+        doctor_id=doctor.id,
+        doctor_name=doctor.name,
+        specialty=doctor.specialty,
+        department=doctor.department.name,
+        appointment_date=appointment.appointment_date,
+        start_time=appointment.start_time,
+        end_time=_appointment_end_time(appointment.start_time, appointment.duration_minutes),
+        duration_minutes=appointment.duration_minutes,
+        reason_preview=reason[:120] if reason else None,
+        status=appointment.status,
+        source=appointment.source,
+        created_at=appointment.created_at,
+    )
+
 
 @router.get("/dashboard/summary", response_model=DashboardSummary)
 def dashboard_summary(db: DbSession) -> DashboardSummary:
+    today = datetime.now(timezone.utc).date()
     return DashboardSummary(
         doctors=db.scalar(select(func.count(Doctor.id))) or 0,
+        active_doctors=db.scalar(select(func.count(Doctor.id)).where(Doctor.active.is_(True))) or 0,
         patients=db.scalar(select(func.count(Patient.id))) or 0,
         appointments=db.scalar(select(func.count(Appointment.id))) or 0,
+        todays_appointments=db.scalar(
+            select(func.count(Appointment.id)).where(Appointment.appointment_date == today)
+        )
+        or 0,
+        upcoming_appointments=db.scalar(
+            select(func.count(Appointment.id)).where(
+                Appointment.appointment_date >= today,
+                Appointment.status.in_(ACTIVE_APPOINTMENT_STATUSES),
+            )
+        )
+        or 0,
+        booked_appointments=db.scalar(
+            select(func.count(Appointment.id)).where(Appointment.status.in_(ACTIVE_APPOINTMENT_STATUSES))
+        )
+        or 0,
+        completed_appointments=db.scalar(
+            select(func.count(Appointment.id)).where(Appointment.status == "completed")
+        )
+        or 0,
+        cancelled_appointments=db.scalar(
+            select(func.count(Appointment.id)).where(Appointment.status == "cancelled")
+        )
+        or 0,
         call_logs=db.scalar(select(func.count(CallLog.id))) or 0,
+        calls_today=db.scalar(select(func.count(CallLog.id)).where(func.date(CallLog.created_at) == today)) or 0,
     )
 
 
 @router.get("/appointments", response_model=list[AppointmentListItem])
 def list_appointments(db: DbSession) -> list[AppointmentListItem]:
-    rows = db.execute(select(Appointment, Doctor).join(Doctor, Appointment.doctor_id == Doctor.id)).all()
+    rows = db.execute(
+        select(Appointment, Doctor, Patient)
+        .join(Doctor, Appointment.doctor_id == Doctor.id)
+        .join(Patient, Appointment.patient_id == Patient.id)
+        .order_by(Appointment.appointment_date.desc(), Appointment.start_time.desc())
+    ).all()
     return [
-        AppointmentListItem(
-            id=appointment.id,
-            appointment_ref=appointment.appointment_ref,
-            doctor_id=doctor.id,
-            doctor_name=doctor.name,
-            appointment_date=appointment.appointment_date,
-            start_time=appointment.start_time,
-            status=appointment.status,
-            source=appointment.source,
-        )
-        for appointment, doctor in rows
+        _appointment_item(appointment=appointment, doctor=doctor, patient=patient)
+        for appointment, doctor, patient in rows
     ]
 
 
@@ -70,7 +152,11 @@ def update_appointment_status(
     if appointment is None:
         raise NotFoundError("Appointment was not found.")
 
-    doctor = db.scalar(select(Doctor).where(Doctor.id == appointment.doctor_id))
+    row = db.execute(
+        select(Doctor, Patient)
+        .join(Patient, Patient.id == appointment.patient_id)
+        .where(Doctor.id == appointment.doctor_id)
+    ).first()
     previous_status = appointment.status
     appointment.status = payload.status
     db.add(
@@ -85,24 +171,22 @@ def update_appointment_status(
     db.commit()
     db.refresh(appointment)
 
-    if doctor is None:
-        raise NotFoundError("Doctor was not found.")
+    if row is None:
+        raise NotFoundError("Appointment relationships were not found.")
+    doctor, patient = row
 
-    return AppointmentListItem(
-        id=appointment.id,
-        appointment_ref=appointment.appointment_ref,
-        doctor_id=doctor.id,
-        doctor_name=doctor.name,
-        appointment_date=appointment.appointment_date,
-        start_time=appointment.start_time,
-        status=appointment.status,
-        source=appointment.source,
-    )
+    return _appointment_item(appointment=appointment, doctor=doctor, patient=patient)
 
 
 @router.get("/doctors", response_model=list[DoctorListItem])
 def list_doctors(db: DbSession) -> list[DoctorListItem]:
-    rows = db.execute(select(Doctor).where(Doctor.active.is_(True))).scalars().all()
+    rows = db.execute(
+        select(Doctor, func.count(Appointment.id))
+        .outerjoin(Appointment, Appointment.doctor_id == Doctor.id)
+        .where(Doctor.active.is_(True))
+        .group_by(Doctor.id)
+        .order_by(Doctor.name.asc())
+    ).all()
     return [
         DoctorListItem(
             id=doctor.id,
@@ -110,8 +194,34 @@ def list_doctors(db: DbSession) -> list[DoctorListItem]:
             specialty=doctor.specialty,
             department=doctor.department.name,
             active=doctor.active,
+            appointment_count=appointment_count,
         )
-        for doctor in rows
+        for doctor, appointment_count in rows
+    ]
+
+
+@router.get("/doctor-schedules", response_model=list[DoctorScheduleListItem])
+def list_doctor_schedules(db: DbSession) -> list[DoctorScheduleListItem]:
+    rows = db.execute(
+        select(DoctorSchedule, Doctor)
+        .join(Doctor, DoctorSchedule.doctor_id == Doctor.id)
+        .where(Doctor.active.is_(True))
+        .order_by(Doctor.name.asc(), DoctorSchedule.day_of_week.asc(), DoctorSchedule.start_time.asc())
+    ).all()
+    return [
+        DoctorScheduleListItem(
+            id=schedule.id,
+            doctor_id=doctor.id,
+            doctor_name=doctor.name,
+            specialty=doctor.specialty,
+            day_of_week=schedule.day_of_week,
+            day_name=DAY_NAMES.get(schedule.day_of_week, "Unknown"),
+            start_time=schedule.start_time,
+            end_time=schedule.end_time,
+            slot_duration_minutes=schedule.slot_duration_minutes,
+            active=schedule.active,
+        )
+        for schedule, doctor in rows
     ]
 
 
@@ -126,6 +236,7 @@ def list_call_logs(db: DbSession) -> list[CallLogListItem]:
             status=call_log.status,
             has_summary=call_log.summary_encrypted is not None,
             has_transcript=call_log.transcript_encrypted is not None,
+            duration_seconds=_call_duration_seconds(call_log),
             started_at=call_log.started_at,
             ended_at=call_log.ended_at,
             created_at=call_log.created_at,

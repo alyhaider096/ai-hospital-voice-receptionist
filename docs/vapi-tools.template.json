@@ -29,7 +29,7 @@
       "type": "apiRequest",
       "method": "POST",
       "url": "{{baseUrl}}/vapi/tools/check-availability",
-      "description": "Check available appointment slots for a doctor on a requested date.",
+      "description": "Check available appointment slots for a doctor on a requested date. If the requested date has no slots, use next_available_dates and handoff_recommended to offer a safer next step.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -43,7 +43,14 @@
           }
         },
         "required": ["doctor_id", "date"]
-      }
+      },
+      "responseFields": [
+        "available_slots",
+        "next_available_dates",
+        "handoff_recommended",
+        "message",
+        "safe_handoff_note"
+      ]
     },
     {
       "name": "bookAppointment",
@@ -95,4 +102,3 @@
     }
   ]
 }
-

@@ -26,10 +26,20 @@ class AvailableSlot(BaseModel):
     display_time: str
 
 
+class SuggestedAvailability(BaseModel):
+    date: date
+    display_date: str
+    first_available_slot: AvailableSlot
+
+
 class CheckAvailabilityResponse(BaseModel):
     doctor_id: str
     date: date
     available_slots: list[AvailableSlot]
+    next_available_dates: list[SuggestedAvailability] = Field(default_factory=list)
+    handoff_recommended: bool = False
+    message: str = "Available slots found."
+    safe_handoff_note: str | None = None
 
 
 class BookAppointmentRequest(BaseModel):
@@ -61,4 +71,3 @@ class EndOfCallRequest(BaseModel):
 class EndOfCallResponse(BaseModel):
     status: str
     message: str
-

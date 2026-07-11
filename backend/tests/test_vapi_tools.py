@@ -155,6 +155,43 @@ def test_schedule_exception_blocks_and_extra_slot_is_returned(
     assert "10:00" not in slots
     assert "10:30" not in slots
     assert "18:00" in slots
+    assert response.json()["handoff_recommended"] is False
+
+
+def test_check_availability_returns_next_dates_and_handoff_for_urgent_no_slot(
+    client: TestClient,
+    db_session: Session,
+    vapi_headers: dict[str, str],
+) -> None:
+    doctor = db_session.scalar(select(Doctor).where(Doctor.name == "Dr. Ayesha Khan"))
+    assert doctor is not None
+    requested_date = date.today() + timedelta(days=1)
+
+    db_session.add(
+        ScheduleException(
+            doctor_id=doctor.id,
+            exception_date=requested_date,
+            start_time=time(0, 0),
+            end_time=time(23, 59),
+            type="blocked",
+            reason="No standard slots for urgent test",
+        )
+    )
+    db_session.commit()
+
+    response = client.post(
+        "/vapi/tools/check-availability",
+        headers=vapi_headers,
+        json={"doctor_id": doctor.id, "date": requested_date.isoformat()},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["available_slots"] == []
+    assert data["handoff_recommended"] is True
+    assert "human receptionist" in data["safe_handoff_note"]
+    assert data["next_available_dates"]
+    assert data["next_available_dates"][0]["first_available_slot"]["start_time"]
 
 
 def test_availability_booking_idempotency_and_double_booking(

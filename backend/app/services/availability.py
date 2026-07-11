@@ -7,10 +7,14 @@ from app.models.appointment import Appointment
 from app.models.doctor import Doctor
 from app.models.doctor_schedule import DoctorSchedule
 from app.models.schedule_exception import ScheduleException
-from app.schemas.vapi import AvailableSlot
+from app.schemas.vapi import AvailableSlot, SuggestedAvailability
 from app.services.errors import NotFoundError, ValidationServiceError
 
 ACTIVE_APPOINTMENT_STATUSES = {"booked", "confirmed"}
+NO_SLOT_HANDOFF_NOTE = (
+    "If the caller says the need is urgent, severe, or must be today/tomorrow, "
+    "offer to connect them with a human receptionist. Do not diagnose."
+)
 
 
 def _combine(day: date, value: time) -> datetime:
@@ -99,8 +103,39 @@ def get_available_slots(db: Session, doctor_id: str, requested_date: date) -> li
     ]
 
 
+def get_next_available_dates(
+    db: Session,
+    doctor_id: str,
+    *,
+    after_date: date,
+    days_to_scan: int = 14,
+    limit: int = 3,
+) -> list[SuggestedAvailability]:
+    suggestions: list[SuggestedAvailability] = []
+    for offset in range(1, days_to_scan + 1):
+        candidate_date = after_date + timedelta(days=offset)
+        slots = get_available_slots(db, doctor_id, candidate_date)
+        if not slots:
+            continue
+        suggestions.append(
+            SuggestedAvailability(
+                date=candidate_date,
+                display_date=f"{candidate_date.strftime('%A, %B')} {candidate_date.day}",
+                first_available_slot=slots[0],
+            )
+        )
+        if len(suggestions) >= limit:
+            break
+    return suggestions
+
+
+def should_recommend_handoff(requested_date: date, available_slots: list[AvailableSlot]) -> bool:
+    if available_slots:
+        return False
+    return requested_date <= date.today() + timedelta(days=1)
+
+
 def ensure_slot_available(db: Session, doctor_id: str, requested_date: date, start_time: time) -> None:
     slots = get_available_slots(db, doctor_id, requested_date)
     if start_time.strftime("%H:%M") not in {slot.start_time for slot in slots}:
         raise ValidationServiceError("Requested slot is not available.")
-

@@ -31,7 +31,8 @@ flowchart TD
 - Voice AI: Vapi assistant, API Request/custom tools, Web Calls for testing
 - Backend: FastAPI, SQLAlchemy, Alembic, Pydantic, python-dotenv
 - Database: PostgreSQL
-- Frontend: Next.js App Router, TypeScript, Tailwind, shadcn/ui
+- Frontend: Next.js App Router, TypeScript, custom responsive admin UI,
+  lucide-react icons
 - Local infrastructure: Docker Compose, ngrok or cloudflared tunnel
 
 ## Repo Structure
@@ -92,7 +93,9 @@ system and can be added later only as an export/integration.
 
 The backend foundation is implemented with FastAPI, SQLAlchemy models, Alembic
 migration, seed data, Vapi tool endpoints, auth endpoints, protected admin
-read/update endpoints, and focused tests.
+read/update endpoints, and focused tests. The frontend admin dashboard is
+implemented with overview stats, appointments, doctors, schedules, call logs,
+and Vapi setup readiness views.
 
 Planned local flow:
 
@@ -191,8 +194,8 @@ See [docs/SECURITY_RISK_REGISTER.md](docs/SECURITY_RISK_REGISTER.md).
 
 ## Demo Status
 
-Current status: backend foundation implemented and tested.
+Current status: backend foundation and admin dashboard implemented and tested.
 
-Next milestone: connect the backend to a live local PostgreSQL database, run
-the seed script, expose it through a tunnel, and attach the three Vapi Web Call
-tools for an end-to-end voice booking test.
+Next milestone: complete Vapi assistant prompt tuning, verify no-slot urgent
+handoff behavior in Web Calls, then attach the hospital phone number after
+official approval.

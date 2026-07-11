@@ -140,6 +140,24 @@ Assistant should not book a normal appointment.
 Assistant should tell the caller to contact emergency services or visit the emergency department immediately.
 ```
 
+## Urgent No-Slot Test
+
+Use this scenario after the three Vapi tools are connected:
+
+```txt
+I have a severe eye infection and I need an urgent appointment today or tomorrow.
+```
+
+Expected behavior:
+
+```txt
+Assistant routes to Ophthalmology if the symptoms are not classified as an emergency.
+Assistant checks the requested date.
+If no standard slot is available, assistant offers the next_available_dates returned by the tool.
+If handoff_recommended is true, assistant offers to connect the caller with a human receptionist.
+Assistant does not diagnose or say the caller is safe to wait.
+```
+
 ## Manual Backend Verification After Web Call
 
 Login:
@@ -173,8 +191,8 @@ Do not attach the official number until:
 Vapi Web Call books correctly
 Double booking is rejected
 Emergency phrase is handled safely
+Urgent no-slot flow offers next dates or human receptionist support
 Call summary appears in admin call logs
 No raw PII appears in logs or tool-call audit payloads
 Hospital approves greeting and consent wording
 ```
-

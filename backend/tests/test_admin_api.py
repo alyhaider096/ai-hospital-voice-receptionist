@@ -98,9 +98,16 @@ def test_admin_summary_returns_counts(client: TestClient, admin_headers: dict[st
     assert response.status_code == 200
     data = response.json()
     assert data["doctors"] == 5
+    assert data["active_doctors"] == 5
     assert data["patients"] == 0
     assert data["appointments"] == 0
+    assert data["todays_appointments"] == 0
+    assert data["upcoming_appointments"] == 0
+    assert data["booked_appointments"] == 0
+    assert data["completed_appointments"] == 0
+    assert data["cancelled_appointments"] == 0
     assert data["call_logs"] == 0
+    assert data["calls_today"] == 0
 
 
 def test_admin_doctors_lists_seeded_active_doctors(
@@ -113,6 +120,28 @@ def test_admin_doctors_lists_seeded_active_doctors(
     doctors = response.json()
     assert len(doctors) == 5
     assert {doctor["specialty"] for doctor in doctors} >= {"Ophthalmology", "General Physician"}
+    assert "appointment_count" in doctors[0]
+
+
+def test_admin_doctor_schedules_lists_seeded_schedule_blocks(
+    client: TestClient,
+    admin_headers: dict[str, str],
+) -> None:
+    response = client.get("/admin/doctor-schedules", headers=admin_headers)
+
+    assert response.status_code == 200
+    schedules = response.json()
+    assert len(schedules) >= 5
+    assert schedules[0]["day_name"] in {
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday",
+    }
+    assert "doctor_name" in schedules[0]
 
 
 def test_admin_appointments_and_status_update_write_audit_log(
@@ -125,7 +154,13 @@ def test_admin_appointments_and_status_update_write_audit_log(
 
     list_response = client.get("/admin/appointments", headers=admin_headers)
     assert list_response.status_code == 200
-    assert list_response.json()[0]["appointment_ref"] == appointment.appointment_ref
+    appointment_row = list_response.json()[0]
+    assert appointment_row["appointment_ref"] == appointment.appointment_ref
+    assert appointment_row["patient_name"] == "Admin Test"
+    assert appointment_row["patient_phone_masked"].startswith("+92")
+    assert appointment_row["reason_preview"] == "eye pain"
+    assert appointment_row["duration_minutes"] == 30
+    assert appointment_row["department"]
 
     update_response = client.patch(
         f"/admin/appointments/{appointment.id}",
@@ -185,5 +220,6 @@ def test_admin_call_logs_hide_summary_and_transcript(
     assert data[0]["vapi_call_id"] == "admin-call-log"
     assert data[0]["has_summary"] is True
     assert data[0]["has_transcript"] is True
+    assert data[0]["duration_seconds"] is None
     assert "summary" not in data[0]
     assert "transcript" not in data[0]
