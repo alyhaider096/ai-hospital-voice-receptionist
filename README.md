@@ -53,11 +53,18 @@ ai-hospital-voice-receptionist/
 ## Vapi Tool Flow
 
 ```txt
+lookupCallerHistory   -> POST /vapi/tools/lookup-caller-history
+classifyCallIntent    -> POST /vapi/tools/classify-call-intent
 matchDoctorBySymptoms -> POST /vapi/tools/match-doctor
 checkAvailability     -> POST /vapi/tools/check-availability
 bookAppointment       -> POST /vapi/tools/book-appointment
 endOfCall             -> POST /vapi/events/end-of-call
 ```
+
+Call handling now tracks caller history, intent, resolution status, escalation
+state, and linked appointment reference inside the official backend database.
+Human escalation is recommended for urgent/emergency, complaint,
+billing/payment, and human-receptionist intents.
 
 All Vapi-facing endpoints must require:
 

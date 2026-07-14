@@ -553,7 +553,7 @@ td small {
 
 table {
   width: 100%;
-  min-width: 860px;
+  min-width: 1040px;
   border-collapse: collapse;
 }
 
@@ -679,6 +679,12 @@ td small {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.escalation-cell {
+  display: grid;
+  gap: 6px;
+  max-width: 180px;
 }
 
 .artifact {

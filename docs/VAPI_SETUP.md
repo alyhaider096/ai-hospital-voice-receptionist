@@ -66,7 +66,111 @@ Recommended Vapi setup:
 
 ## Tool Definitions
 
-### Tool 1: `matchDoctorBySymptoms`
+### Tool 1: `lookupCallerHistory`
+
+Method:
+
+```txt
+POST
+```
+
+Path:
+
+```txt
+/vapi/tools/lookup-caller-history
+```
+
+Description:
+
+```txt
+Look up masked caller history by phone number before booking, cancelling, or
+rescheduling. This tool must not expose raw patient data.
+```
+
+Input schema:
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "phone": {
+      "type": "string",
+      "description": "Caller phone number."
+    },
+    "vapi_call_id": {
+      "type": "string"
+    }
+  },
+  "required": ["phone"]
+}
+```
+
+Important response fields:
+
+```txt
+known_caller
+phone_masked
+appointment_count
+upcoming_appointments
+last_appointment
+message
+```
+
+### Tool 2: `classifyCallIntent`
+
+Method:
+
+```txt
+POST
+```
+
+Path:
+
+```txt
+/vapi/tools/classify-call-intent
+```
+
+Description:
+
+```txt
+Classify the caller's intent and decide whether human receptionist escalation
+is required.
+```
+
+Input schema:
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "utterance": {
+      "type": "string",
+      "description": "The caller's latest request or short call summary."
+    },
+    "caller_phone": {
+      "type": "string"
+    },
+    "vapi_call_id": {
+      "type": "string"
+    }
+  },
+  "required": ["utterance"]
+}
+```
+
+Important response fields:
+
+```txt
+intent
+resolution_status
+escalation_required
+escalation_reason
+message
+```
+
+Escalate to a human if `escalation_required` is true.
+
+### Tool 3: `matchDoctorBySymptoms`
 
 Method:
 
@@ -102,7 +206,7 @@ Input schema:
 }
 ```
 
-### Tool 2: `checkAvailability`
+### Tool 4: `checkAvailability`
 
 Method:
 
@@ -158,7 +262,7 @@ handoff_recommended  -> true when no slot is available for today/tomorrow
 safe_handoff_note    -> receptionist handoff instruction for urgent no-slot calls
 ```
 
-### Tool 3: `bookAppointment`
+### Tool 5: `bookAppointment`
 
 Method:
 
@@ -236,15 +340,18 @@ loss of consciousness, stroke symptoms, or any urgent emergency, tell them to
 contact emergency services or visit the emergency department immediately.
 
 For normal appointment booking:
-1. Ask what problem or symptoms they want an appointment for.
-2. Use matchDoctorBySymptoms.
-3. Ask for preferred date if not already provided.
-4. Use checkAvailability.
-5. Offer up to three available slots.
-6. Ask for patient name and phone number.
-7. Repeat doctor, date, and time for confirmation.
-8. Only after the patient confirms, use bookAppointment.
-9. Read appointment_ref_spoken clearly to the caller.
+1. If caller phone is available, use lookupCallerHistory.
+2. Use classifyCallIntent when the caller describes why they are calling.
+3. If escalation_required is true, offer a human receptionist.
+4. Ask what problem or symptoms they want an appointment for.
+5. Use matchDoctorBySymptoms.
+6. Ask for preferred date if not already provided.
+7. Use checkAvailability.
+8. Offer up to three available slots.
+9. Ask for patient name and phone number.
+10. Repeat doctor, date, and time for confirmation.
+11. Only after the patient confirms, use bookAppointment.
+12. Read appointment_ref_spoken clearly to the caller.
 
 If checkAvailability returns no available_slots:
 1. First read and follow the returned message field.

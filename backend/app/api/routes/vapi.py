@@ -8,8 +8,12 @@ from app.models.vapi_tool_call import VapiToolCall
 from app.schemas.vapi import (
     BookAppointmentRequest,
     BookAppointmentResponse,
+    CallerHistoryRequest,
+    CallerHistoryResponse,
     CheckAvailabilityRequest,
     CheckAvailabilityResponse,
+    ClassifyCallIntentRequest,
+    ClassifyCallIntentResponse,
     EndOfCallRequest,
     EndOfCallResponse,
     MatchDoctorRequest,
@@ -22,7 +26,7 @@ from app.services.availability import (
     should_recommend_handoff,
 )
 from app.services.booking import book_appointment
-from app.services.call_logs import save_end_of_call
+from app.services.call_logs import classify_call_intent, link_call_to_booking, lookup_caller_history, save_end_of_call
 from app.services.matching import match_doctor_by_symptoms
 
 router = APIRouter(prefix="/vapi", tags=["vapi"], dependencies=[Depends(require_vapi_auth)])
@@ -98,6 +102,32 @@ def match_doctor(payload: MatchDoctorRequest, db: DbSession) -> MatchDoctorRespo
     return response
 
 
+@router.post("/tools/lookup-caller-history", response_model=CallerHistoryResponse)
+def caller_history(payload: CallerHistoryRequest, db: DbSession) -> CallerHistoryResponse:
+    response = lookup_caller_history(db, payload)
+    _record_tool_call(
+        db,
+        tool_name="lookupCallerHistory",
+        status="success",
+        request_payload=payload.model_dump(mode="json"),
+        response_payload=response.model_dump(mode="json"),
+    )
+    return response
+
+
+@router.post("/tools/classify-call-intent", response_model=ClassifyCallIntentResponse)
+def classify_intent(payload: ClassifyCallIntentRequest, db: DbSession) -> ClassifyCallIntentResponse:
+    response = classify_call_intent(db, payload)
+    _record_tool_call(
+        db,
+        tool_name="classifyCallIntent",
+        status="success",
+        request_payload=payload.model_dump(mode="json"),
+        response_payload=response.model_dump(mode="json"),
+    )
+    return response
+
+
 @router.post("/tools/check-availability", response_model=CheckAvailabilityResponse)
 def check_availability(payload: CheckAvailabilityRequest, db: DbSession) -> CheckAvailabilityResponse:
     requested_date_was_past = payload.date < date.today()
@@ -157,6 +187,12 @@ def create_appointment(payload: BookAppointmentRequest, db: DbSession) -> BookAp
         reason=payload.reason,
         vapi_call_id=payload.vapi_call_id,
         source="vapi_web",
+    )
+    link_call_to_booking(
+        db,
+        vapi_call_id=payload.vapi_call_id,
+        phone=payload.phone,
+        appointment_ref=response.appointment_ref,
     )
     _record_tool_call(
         db,

@@ -64,10 +64,52 @@ class BookAppointmentResponse(BaseModel):
     message: str
 
 
+class CallerHistoryRequest(BaseModel):
+    phone: str = Field(min_length=7, max_length=30)
+    vapi_call_id: str | None = None
+
+
+class CallerAppointmentSummary(BaseModel):
+    appointment_ref: str
+    appointment_date: date
+    start_time: str
+    doctor_name: str
+    specialty: str
+    status: str
+
+
+class CallerHistoryResponse(BaseModel):
+    known_caller: bool
+    phone_masked: str
+    appointment_count: int
+    upcoming_appointments: list[CallerAppointmentSummary] = Field(default_factory=list)
+    last_appointment: CallerAppointmentSummary | None = None
+    message: str
+
+
+class ClassifyCallIntentRequest(BaseModel):
+    utterance: str = Field(min_length=2, max_length=2000)
+    vapi_call_id: str | None = None
+    caller_phone: str | None = Field(default=None, min_length=7, max_length=30)
+
+
+class ClassifyCallIntentResponse(BaseModel):
+    intent: str
+    resolution_status: str
+    escalation_required: bool
+    escalation_reason: str | None = None
+    message: str
+
+
 class EndOfCallRequest(BaseModel):
     vapi_call_id: str
     channel: str = "vapi_web"
     status: str = "ended"
+    caller_phone: str | None = None
+    intent: str | None = None
+    resolution_status: str | None = None
+    escalated: bool | None = None
+    escalation_reason: str | None = None
     summary: str | None = None
     transcript: str | None = None
     started_at: datetime | None = None

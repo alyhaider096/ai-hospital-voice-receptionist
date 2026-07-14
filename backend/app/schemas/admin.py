@@ -68,6 +68,12 @@ class CallLogListItem(BaseModel):
     vapi_call_id: str
     channel: str
     status: str
+    caller_phone_masked: str | None
+    intent: str
+    resolution_status: str
+    escalated: bool
+    escalation_reason: str | None
+    appointment_ref: str | None
     has_summary: bool
     has_transcript: bool
     duration_seconds: int | None

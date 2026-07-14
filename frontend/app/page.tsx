@@ -87,6 +87,12 @@ type CallLog = {
   vapi_call_id: string;
   channel: string;
   status: string;
+  caller_phone_masked: string | null;
+  intent: string;
+  resolution_status: string;
+  escalated: boolean;
+  escalation_reason: string | null;
+  appointment_ref: string | null;
   has_summary: boolean;
   has_transcript: boolean;
   duration_seconds: number | null;
@@ -607,7 +613,7 @@ function Overview({
                     <StatusPill value={call.status} />
                   </div>
                   <strong>{call.vapi_call_id}</strong>
-                  <span>{call.channel}</span>
+                  <span>{titleCase(call.intent)}</span>
                   <small>{formatDateTime(call.created_at)}</small>
                 </div>
               ))
@@ -816,8 +822,13 @@ function CallLogsView({ callLogs }: { callLogs: CallLog[] }) {
           <thead>
             <tr>
               <th>Call ID</th>
+              <th>Caller</th>
+              <th>Intent</th>
               <th>Channel</th>
               <th>Status</th>
+              <th>Resolution</th>
+              <th>Escalation</th>
+              <th>Appointment</th>
               <th>Artifacts</th>
               <th>Duration</th>
               <th>Created</th>
@@ -830,10 +841,26 @@ function CallLogsView({ callLogs }: { callLogs: CallLog[] }) {
                   <td>
                     <strong>{call.vapi_call_id}</strong>
                   </td>
+                  <td>{call.caller_phone_masked ?? "Not provided"}</td>
+                  <td>{titleCase(call.intent)}</td>
                   <td>{call.channel}</td>
                   <td>
                     <StatusPill value={call.status} />
                   </td>
+                  <td>
+                    <StatusPill value={call.resolution_status} muted={call.resolution_status === "open"} />
+                  </td>
+                  <td>
+                    {call.escalated ? (
+                      <span className="escalation-cell">
+                        <StatusPill value="Escalated" />
+                        <small>{call.escalation_reason ?? "Human follow-up needed"}</small>
+                      </span>
+                    ) : (
+                      <StatusPill value="No" muted />
+                    )}
+                  </td>
+                  <td>{call.appointment_ref ?? "None"}</td>
                   <td>
                     <div className="artifact-row">
                       <span className={call.has_summary ? "artifact active" : "artifact"}>Summary</span>
@@ -846,7 +873,7 @@ function CallLogsView({ callLogs }: { callLogs: CallLog[] }) {
               ))
             ) : (
               <tr>
-                <td colSpan={6}>
+                <td colSpan={11}>
                   <EmptyState label="No call logs have been stored yet." />
                 </td>
               </tr>
@@ -860,6 +887,18 @@ function CallLogsView({ callLogs }: { callLogs: CallLog[] }) {
 
 function VapiView() {
   const tools = [
+    {
+      name: "lookupCallerHistory",
+      method: "POST",
+      url: endpoint("/vapi/tools/lookup-caller-history"),
+      body: '{ "phone": "+923001234567", "vapi_call_id": "..." }'
+    },
+    {
+      name: "classifyCallIntent",
+      method: "POST",
+      url: endpoint("/vapi/tools/classify-call-intent"),
+      body: '{ "utterance": "I want to book an appointment", "vapi_call_id": "..." }'
+    },
     {
       name: "matchDoctorBySymptoms",
       method: "POST",

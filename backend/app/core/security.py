@@ -56,8 +56,10 @@ def redact_payload(payload: dict) -> dict:
     sensitive_keys = {
         "patient_name",
         "phone",
+        "caller_phone",
         "reason",
         "symptoms",
+        "utterance",
         "summary",
         "transcript",
         "authorization",
@@ -90,4 +92,3 @@ def verify_password(password: str, password_hash_value: str) -> bool:
     expected = base64.b64decode(digest_b64.encode("utf-8"))
     actual = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, int(iterations))
     return hmac.compare_digest(actual, expected)
-

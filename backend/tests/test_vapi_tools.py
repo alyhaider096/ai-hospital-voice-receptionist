@@ -252,6 +252,82 @@ def test_availability_booking_idempotency_and_double_booking(
     assert double_booking.status_code == 422
     assert double_booking.json()["error"]["code"] == "validation_error"
 
+    linked_call = db_session.scalar(select(CallLog).where(CallLog.vapi_call_id == "call-001"))
+    assert linked_call is not None
+    assert linked_call.intent == "new_appointment"
+    assert linked_call.resolution_status == "resolved"
+    assert linked_call.appointment_id is not None
+
+
+def test_lookup_caller_history_returns_previous_appointments(
+    client: TestClient,
+    db_session: Session,
+    vapi_headers: dict[str, str],
+) -> None:
+    doctor = db_session.scalar(select(Doctor).where(Doctor.name == "Dr. Ayesha Khan"))
+    assert doctor is not None
+    appointment_date = next_open_date()
+    availability = client.post(
+        "/vapi/tools/check-availability",
+        headers=vapi_headers,
+        json={"doctor_id": doctor.id, "date": appointment_date.isoformat()},
+    )
+    slot = availability.json()["available_slots"][0]["start_time"]
+    booking = client.post(
+        "/vapi/tools/book-appointment",
+        headers=vapi_headers,
+        json={
+            "patient_name": "History Patient",
+            "phone": "+923001234000",
+            "doctor_id": doctor.id,
+            "date": appointment_date.isoformat(),
+            "start_time": slot,
+            "reason": "eye pain",
+            "vapi_call_id": "history-call",
+        },
+    )
+    assert booking.status_code == 200
+
+    response = client.post(
+        "/vapi/tools/lookup-caller-history",
+        headers=vapi_headers,
+        json={"phone": "+92 300 123 4000", "vapi_call_id": "history-call"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["known_caller"] is True
+    assert data["appointment_count"] == 1
+    assert data["upcoming_appointments"][0]["appointment_ref"] == booking.json()["appointment_ref"]
+    assert data["phone_masked"].startswith("+92")
+
+
+def test_classify_call_intent_escalates_complaints(
+    client: TestClient,
+    db_session: Session,
+    vapi_headers: dict[str, str],
+) -> None:
+    response = client.post(
+        "/vapi/tools/classify-call-intent",
+        headers=vapi_headers,
+        json={
+            "utterance": "I have a payment complaint and want to speak to a human receptionist.",
+            "caller_phone": "+923001112233",
+            "vapi_call_id": "complaint-call",
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["intent"] in {"billing_or_payment", "complaint", "human_receptionist"}
+    assert data["escalation_required"] is True
+    assert data["resolution_status"] == "escalated"
+
+    call_log = db_session.scalar(select(CallLog).where(CallLog.vapi_call_id == "complaint-call"))
+    assert call_log is not None
+    assert call_log.escalated is True
+    assert call_log.caller_phone_hash is not None
+
 
 def test_cancelled_appointment_reopens_slot(
     client: TestClient,

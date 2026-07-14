@@ -8,6 +8,67 @@
   },
   "tools": [
     {
+      "name": "lookupCallerHistory",
+      "type": "apiRequest",
+      "method": "POST",
+      "url": "{{baseUrl}}/vapi/tools/lookup-caller-history",
+      "description": "Look up masked caller history by phone number before booking, cancelling, or rescheduling. This tool must not expose raw patient data.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "phone": {
+            "type": "string",
+            "description": "Caller phone number in the form provided by the caller or Vapi."
+          },
+          "vapi_call_id": {
+            "type": "string",
+            "description": "Vapi call ID when available."
+          }
+        },
+        "required": ["phone"]
+      },
+      "responseFields": [
+        "known_caller",
+        "phone_masked",
+        "appointment_count",
+        "upcoming_appointments",
+        "last_appointment",
+        "message"
+      ]
+    },
+    {
+      "name": "classifyCallIntent",
+      "type": "apiRequest",
+      "method": "POST",
+      "url": "{{baseUrl}}/vapi/tools/classify-call-intent",
+      "description": "Classify the caller's intent and decide whether human receptionist escalation is required.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "utterance": {
+            "type": "string",
+            "description": "The caller's latest request or short call summary."
+          },
+          "caller_phone": {
+            "type": "string",
+            "description": "Caller phone number when available."
+          },
+          "vapi_call_id": {
+            "type": "string",
+            "description": "Vapi call ID when available."
+          }
+        },
+        "required": ["utterance"]
+      },
+      "responseFields": [
+        "intent",
+        "resolution_status",
+        "escalation_required",
+        "escalation_reason",
+        "message"
+      ]
+    },
+    {
       "name": "matchDoctorBySymptoms",
       "type": "apiRequest",
       "method": "POST",

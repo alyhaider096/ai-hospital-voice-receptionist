@@ -207,6 +207,11 @@ def test_admin_call_logs_hide_summary_and_transcript(
             "vapi_call_id": "admin-call-log",
             "channel": "vapi_web",
             "status": "ended",
+            "caller_phone": "+923001234500",
+            "intent": "complaint",
+            "resolution_status": "escalated",
+            "escalated": True,
+            "escalation_reason": "Caller asked for a human receptionist.",
             "summary": "Sensitive patient summary",
             "transcript": "Sensitive transcript",
         },
@@ -221,5 +226,10 @@ def test_admin_call_logs_hide_summary_and_transcript(
     assert data[0]["has_summary"] is True
     assert data[0]["has_transcript"] is True
     assert data[0]["duration_seconds"] is None
+    assert data[0]["caller_phone_masked"].startswith("+92")
+    assert data[0]["intent"] == "complaint"
+    assert data[0]["resolution_status"] == "escalated"
+    assert data[0]["escalated"] is True
+    assert data[0]["escalation_reason"] == "Caller asked for a human receptionist."
     assert "summary" not in data[0]
     assert "transcript" not in data[0]

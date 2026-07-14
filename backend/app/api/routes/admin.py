@@ -63,6 +63,13 @@ def _call_duration_seconds(call_log: CallLog) -> int | None:
     return max(0, int((call_log.ended_at - call_log.started_at).total_seconds()))
 
 
+def _call_appointment_ref(db: DbSession, call_log: CallLog) -> str | None:
+    if call_log.appointment_id is None:
+        return None
+    appointment = db.scalar(select(Appointment).where(Appointment.id == call_log.appointment_id))
+    return appointment.appointment_ref if appointment else None
+
+
 def _appointment_item(appointment: Appointment, doctor: Doctor, patient: Patient) -> AppointmentListItem:
     patient_name = pii_cipher.decrypt(patient.full_name_encrypted) or "Unknown patient"
     patient_phone = pii_cipher.decrypt(patient.phone_encrypted)
@@ -234,6 +241,12 @@ def list_call_logs(db: DbSession) -> list[CallLogListItem]:
             vapi_call_id=call_log.vapi_call_id,
             channel=call_log.channel,
             status=call_log.status,
+            caller_phone_masked=_mask_phone(pii_cipher.decrypt(call_log.caller_phone_encrypted)),
+            intent=call_log.intent,
+            resolution_status=call_log.resolution_status,
+            escalated=call_log.escalated,
+            escalation_reason=call_log.escalation_reason,
+            appointment_ref=_call_appointment_ref(db, call_log),
             has_summary=call_log.summary_encrypted is not None,
             has_transcript=call_log.transcript_encrypted is not None,
             duration_seconds=_call_duration_seconds(call_log),
