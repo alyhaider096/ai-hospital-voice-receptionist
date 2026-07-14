@@ -3,14 +3,19 @@
 import {
   Activity,
   AlertCircle,
+  BellRing,
   CalendarClock,
   CheckCircle2,
   ClipboardList,
   Clock3,
+  Database,
   FileAudio,
+  Headphones,
   KeyRound,
+  LockKeyhole,
   LogOut,
   PhoneCall,
+  Radio,
   RefreshCw,
   Search,
   ShieldCheck,
@@ -223,6 +228,17 @@ function endpoint(path: string): string {
   return `${API_BASE_URL}${path}`;
 }
 
+function viewSubtitle(view: View): string {
+  const subtitles: Record<View, string> = {
+    overview: "Monitor appointment flow, doctor coverage, and live voice activity.",
+    appointments: "Search, review, and update official booking records.",
+    doctors: "Review doctor capacity, clinic schedules, and availability blocks.",
+    calls: "Track caller intent, escalation state, summaries, and linked bookings.",
+    vapi: "Keep the voice assistant connected to the live backend tools."
+  };
+  return subtitles[view];
+}
+
 export default function AdminDashboard() {
   const [token, setToken] = useState<string>("");
   const [email, setEmail] = useState("admin@example.com");
@@ -350,6 +366,8 @@ export default function AdminDashboard() {
   const latestAppointments = appointments.slice(0, 6);
   const latestCalls = callLogs.slice(0, 5);
   const activeCallCount = callLogs.filter((call) => call.status !== "ended").length;
+  const escalationCount = callLogs.filter((call) => call.escalated).length;
+  const resolvedCallCount = callLogs.filter((call) => call.resolution_status === "resolved").length;
 
   if (!token) {
     return (
@@ -430,6 +448,14 @@ export default function AdminDashboard() {
           </div>
         </div>
 
+        <div className="sidebar-status">
+          <div>
+            <span className="status-dot pulse" />
+            <strong>System online</strong>
+          </div>
+          <small>Vapi tools, admin API, and appointment records are monitored from this console.</small>
+        </div>
+
         <nav className="nav-list" aria-label="Dashboard sections">
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -464,6 +490,7 @@ export default function AdminDashboard() {
           <div>
             <p className="eyebrow">{activeView === "vapi" ? "Integration readiness" : "Live operations"}</p>
             <h1>{navItems.find((item) => item.id === activeView)?.label}</h1>
+            <span className="topbar-subtitle">{viewSubtitle(activeView)}</span>
           </div>
           <div className="topbar-actions">
             <div className="sync-state">
@@ -491,6 +518,8 @@ export default function AdminDashboard() {
             latestAppointments={latestAppointments}
             latestCalls={latestCalls}
             activeCallCount={activeCallCount}
+            escalationCount={escalationCount}
+            resolvedCallCount={resolvedCallCount}
           />
         ) : null}
 
@@ -523,30 +552,63 @@ function Overview({
   todayAppointments,
   latestAppointments,
   latestCalls,
-  activeCallCount
+  activeCallCount,
+  escalationCount,
+  resolvedCallCount
 }: {
   summary: DashboardSummary;
   todayAppointments: Appointment[];
   latestAppointments: Appointment[];
   latestCalls: CallLog[];
   activeCallCount: number;
+  escalationCount: number;
+  resolvedCallCount: number;
 }) {
   const stats = [
-    { label: "Appointments", value: summary.appointments, detail: `${summary.todays_appointments} today`, icon: CalendarClock },
-    { label: "Upcoming", value: summary.upcoming_appointments, detail: `${summary.booked_appointments} active`, icon: ClipboardList },
-    { label: "Patients", value: summary.patients, detail: "Encrypted records", icon: UsersRound },
-    { label: "Doctors", value: summary.active_doctors, detail: `${summary.doctors} total`, icon: Stethoscope },
-    { label: "Calls", value: summary.call_logs, detail: `${summary.calls_today} today`, icon: PhoneCall },
-    { label: "Open Calls", value: activeCallCount, detail: "Monitor status", icon: Activity }
+    { label: "Appointments", value: summary.appointments, detail: `${summary.todays_appointments} today`, icon: CalendarClock, tone: "teal" },
+    { label: "Upcoming", value: summary.upcoming_appointments, detail: `${summary.booked_appointments} active`, icon: ClipboardList, tone: "wine" },
+    { label: "Patients", value: summary.patients, detail: "Encrypted records", icon: UsersRound, tone: "amber" },
+    { label: "Doctors", value: summary.active_doctors, detail: `${summary.doctors} total`, icon: Stethoscope, tone: "green" },
+    { label: "Calls", value: summary.call_logs, detail: `${summary.calls_today} today`, icon: PhoneCall, tone: "blue" },
+    { label: "Escalations", value: escalationCount, detail: "Human follow-up", icon: BellRing, tone: "red" }
   ];
+  const completionRate = summary.call_logs ? Math.round((resolvedCallCount / summary.call_logs) * 100) : 0;
 
   return (
     <div className="view-stack">
+      <section className="ops-hero">
+        <div className="ops-hero-copy">
+          <p className="eyebrow">Official reception command center</p>
+          <h2>Appointments, calls, and staff readiness in one live view.</h2>
+          <span>
+            The voice assistant routes callers, books confirmed slots, records call context, and flags cases that need
+            human attention.
+          </span>
+        </div>
+        <div className="ops-metrics" aria-label="Operational health">
+          <div>
+            <Headphones size={18} aria-hidden="true" />
+            <strong>{activeCallCount}</strong>
+            <span>active calls</span>
+          </div>
+          <div>
+            <CheckCircle2 size={18} aria-hidden="true" />
+            <strong>{completionRate}%</strong>
+            <span>resolved calls</span>
+          </div>
+          <div>
+            <Database size={18} aria-hidden="true" />
+            <strong>{summary.upcoming_appointments}</strong>
+            <span>upcoming slots</span>
+          </div>
+        </div>
+      </section>
+
       <section className="stat-grid" aria-label="Dashboard summary">
         {stats.map((stat) => {
           const Icon = stat.icon;
           return (
-            <article className="stat-card" key={stat.label}>
+            <article className={`stat-card tone-${stat.tone}`} key={stat.label}>
               <div className="stat-icon">
                 <Icon size={20} aria-hidden="true" />
               </div>
@@ -755,8 +817,29 @@ function AppointmentsView({
 }
 
 function DoctorsView({ doctors, schedules }: { doctors: Doctor[]; schedules: DoctorSchedule[] }) {
+  const activeDoctors = doctors.filter((doctor) => doctor.active).length;
+  const inactiveDoctors = doctors.length - activeDoctors;
+
   return (
     <div className="view-stack">
+      <section className="doctor-summary">
+        <article>
+          <Stethoscope size={20} aria-hidden="true" />
+          <strong>{activeDoctors}</strong>
+          <span>active doctors</span>
+        </article>
+        <article>
+          <Clock3 size={20} aria-hidden="true" />
+          <strong>{schedules.length}</strong>
+          <span>weekly schedule blocks</span>
+        </article>
+        <article>
+          <AlertCircle size={20} aria-hidden="true" />
+          <strong>{inactiveDoctors}</strong>
+          <span>inactive doctors</span>
+        </article>
+      </section>
+
       <section className="doctor-grid">
         {doctors.map((doctor) => (
           <article className="doctor-card" key={doctor.id}>
@@ -767,6 +850,7 @@ function DoctorsView({ doctors, schedules }: { doctors: Doctor[]; schedules: Doc
               <strong>{doctor.name}</strong>
               <span>{doctor.specialty}</span>
               <small>{doctor.department}</small>
+              <StatusPill value={doctor.active ? "Active" : "Inactive"} muted={!doctor.active} />
             </div>
             <div className="doctor-count">
               <span>{doctor.appointment_count}</span>
@@ -814,74 +898,103 @@ function DoctorsView({ doctors, schedules }: { doctors: Doctor[]; schedules: Doc
 }
 
 function CallLogsView({ callLogs }: { callLogs: CallLog[] }) {
+  const escalatedCalls = callLogs.filter((call) => call.escalated).length;
+  const resolvedCalls = callLogs.filter((call) => call.resolution_status === "resolved").length;
+  const openCalls = callLogs.filter((call) => call.resolution_status !== "resolved").length;
+
   return (
-    <section className="panel table-panel">
-      <PanelTitle icon={PhoneCall} title="Vapi Call Logs" meta={`${callLogs.length} records`} />
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Call ID</th>
-              <th>Caller</th>
-              <th>Intent</th>
-              <th>Channel</th>
-              <th>Status</th>
-              <th>Resolution</th>
-              <th>Escalation</th>
-              <th>Appointment</th>
-              <th>Artifacts</th>
-              <th>Duration</th>
-              <th>Created</th>
-            </tr>
-          </thead>
-          <tbody>
-            {callLogs.length ? (
-              callLogs.map((call) => (
-                <tr key={call.id}>
-                  <td>
-                    <strong>{call.vapi_call_id}</strong>
-                  </td>
-                  <td>{call.caller_phone_masked ?? "Not provided"}</td>
-                  <td>{titleCase(call.intent)}</td>
-                  <td>{call.channel}</td>
-                  <td>
-                    <StatusPill value={call.status} />
-                  </td>
-                  <td>
-                    <StatusPill value={call.resolution_status} muted={call.resolution_status === "open"} />
-                  </td>
-                  <td>
-                    {call.escalated ? (
-                      <span className="escalation-cell">
-                        <StatusPill value="Escalated" />
-                        <small>{call.escalation_reason ?? "Human follow-up needed"}</small>
-                      </span>
-                    ) : (
-                      <StatusPill value="No" muted />
-                    )}
-                  </td>
-                  <td>{call.appointment_ref ?? "None"}</td>
-                  <td>
-                    <div className="artifact-row">
-                      <span className={call.has_summary ? "artifact active" : "artifact"}>Summary</span>
-                      <span className={call.has_transcript ? "artifact active" : "artifact"}>Transcript</span>
-                    </div>
-                  </td>
-                  <td>{formatDuration(call.duration_seconds)}</td>
-                  <td>{formatDateTime(call.created_at)}</td>
-                </tr>
-              ))
-            ) : (
+    <div className="view-stack">
+      <section className="call-summary">
+        <article>
+          <PhoneCall size={20} aria-hidden="true" />
+          <strong>{callLogs.length}</strong>
+          <span>total calls</span>
+        </article>
+        <article>
+          <CheckCircle2 size={20} aria-hidden="true" />
+          <strong>{resolvedCalls}</strong>
+          <span>resolved</span>
+        </article>
+        <article>
+          <BellRing size={20} aria-hidden="true" />
+          <strong>{escalatedCalls}</strong>
+          <span>escalated</span>
+        </article>
+        <article>
+          <Activity size={20} aria-hidden="true" />
+          <strong>{openCalls}</strong>
+          <span>open follow-ups</span>
+        </article>
+      </section>
+
+      <section className="panel table-panel">
+        <PanelTitle icon={PhoneCall} title="Vapi Call Logs" meta={`${callLogs.length} records`} />
+        <div className="table-wrap">
+          <table>
+            <thead>
               <tr>
-                <td colSpan={11}>
-                  <EmptyState label="No call logs have been stored yet." />
-                </td>
+                <th>Call ID</th>
+                <th>Caller</th>
+                <th>Intent</th>
+                <th>Channel</th>
+                <th>Status</th>
+                <th>Resolution</th>
+                <th>Escalation</th>
+                <th>Appointment</th>
+                <th>Artifacts</th>
+                <th>Duration</th>
+                <th>Created</th>
               </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </section>
+            </thead>
+            <tbody>
+              {callLogs.length ? (
+                callLogs.map((call) => (
+                  <tr key={call.id}>
+                    <td>
+                      <strong>{call.vapi_call_id}</strong>
+                    </td>
+                    <td>{call.caller_phone_masked ?? "Not provided"}</td>
+                    <td>{titleCase(call.intent)}</td>
+                    <td>{call.channel}</td>
+                    <td>
+                      <StatusPill value={call.status} />
+                    </td>
+                    <td>
+                      <StatusPill value={call.resolution_status} muted={call.resolution_status === "open"} />
+                    </td>
+                    <td>
+                      {call.escalated ? (
+                        <span className="escalation-cell">
+                          <StatusPill value="Escalated" />
+                          <small>{call.escalation_reason ?? "Human follow-up needed"}</small>
+                        </span>
+                      ) : (
+                        <StatusPill value="No" muted />
+                      )}
+                    </td>
+                    <td>{call.appointment_ref ?? "None"}</td>
+                    <td>
+                      <div className="artifact-row">
+                        <span className={call.has_summary ? "artifact active" : "artifact"}>Summary</span>
+                        <span className={call.has_transcript ? "artifact active" : "artifact"}>Transcript</span>
+                      </div>
+                    </td>
+                    <td>{formatDuration(call.duration_seconds)}</td>
+                    <td>{formatDateTime(call.created_at)}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={11}>
+                    <EmptyState label="No call logs have been stored yet." />
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
   );
 }
 
@@ -939,7 +1052,12 @@ function VapiView() {
 
       <section className="readiness-grid">
         <article className="readiness-card">
-          <CheckCircle2 size={22} aria-hidden="true" />
+          <Radio size={22} aria-hidden="true" />
+          <strong>Live voice routing</strong>
+          <span>Vapi calls use HTTPS tool endpoints to reach this backend.</span>
+        </article>
+        <article className="readiness-card">
+          <LockKeyhole size={22} aria-hidden="true" />
           <strong>Bearer authorization</strong>
           <span>Configured in backend environment and pasted into Vapi request headers.</span>
         </article>
