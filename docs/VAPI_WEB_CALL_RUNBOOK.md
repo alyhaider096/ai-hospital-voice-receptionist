@@ -11,7 +11,24 @@ Local backend:
 http://127.0.0.1:8001
 ```
 
-Vapi needs a public HTTPS URL, so expose the backend with one of these:
+Vapi needs a public HTTPS URL. For the fastest local test, run:
+
+```powershell
+.\scripts\start-vapi-tunnel.ps1
+```
+
+The script stops old hospital backend tunnels, starts one fresh Cloudflare
+tunnel to `http://127.0.0.1:8001`, forces HTTP/2 transport, and prints the
+exact Vapi request URLs.
+
+To also run public endpoint smoke tests without printing the `VAPI_TOOL_SECRET`,
+use:
+
+```powershell
+.\scripts\start-vapi-tunnel.ps1 -TestTools
+```
+
+Manual alternatives:
 
 ```bash
 ngrok http 8001
@@ -20,11 +37,15 @@ ngrok http 8001
 or:
 
 ```bash
-cloudflared tunnel --url http://127.0.0.1:8001
+cloudflared tunnel --protocol http2 --url http://127.0.0.1:8001
 ```
 
 Neither tunnel tool is committed to the repo. Install and authenticate the one
 you choose on the local machine.
+
+Important: free quick tunnels are temporary. If the agent says it cannot connect
+to the appointment system, generate a fresh tunnel and replace every Vapi tool
+Request URL with the new public URL.
 
 ## Backend Preflight
 
@@ -57,9 +78,11 @@ adminCallLogs: ok
 
 ## Vapi Tool Setup
 
-Create these three API Request tools first:
+Create these API Request tools first:
 
 ```txt
+lookupCallerHistory
+classifyCallIntent
 matchDoctorBySymptoms
 checkAvailability
 bookAppointment
@@ -103,6 +126,25 @@ replace-with-long-random-vapi-secret
 
 Before official use, rotate this value and configure it as a Vapi custom
 credential. Do not paste real secrets into assistant prompts.
+
+## If Vapi Cannot Connect
+
+Use this checklist in order:
+
+```txt
+1. Confirm backend health: http://127.0.0.1:8001/health returns {"status":"ok"}.
+2. Run .\scripts\start-vapi-tunnel.ps1 to get a fresh public HTTPS URL.
+3. Paste the new base URL into every Vapi API Request tool.
+4. Keep method as POST for all hospital tools.
+5. Keep Authorization as: Bearer <VAPI_TOOL_SECRET>.
+6. Confirm request body field names match the docs exactly:
+   symptoms, doctor_id, date, patient_name, phone, start_time, reason.
+7. Save each tool and save/publish the assistant again.
+8. Test matchDoctorBySymptoms first, then checkAvailability, then bookAppointment.
+```
+
+Do not use `localhost`, `127.0.0.1`, or an expired tunnel URL inside Vapi.
+Vapi must reach the backend over the public internet.
 
 ## Assistant Test Script
 
