@@ -60,6 +60,7 @@ class BookAppointmentRequest(BaseModel):
 class BookAppointmentResponse(BaseModel):
     status: str
     appointment_ref: str
+    appointment_ref_spoken: str
     message: str
 
 

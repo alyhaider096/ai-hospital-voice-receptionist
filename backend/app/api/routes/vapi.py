@@ -51,7 +51,7 @@ def _availability_message(
         return f"Available slots found for the requested date: {slot_text}."
     if requested_date_was_past:
         return (
-            "The requested date appears to be in the past. "
+            "I could not use the requested date exactly. "
             f"{summary or 'No future slots were found in the next two weeks.'}"
         )
     if handoff_recommended:

@@ -96,7 +96,13 @@
           }
         },
         "required": ["patient_name", "phone", "doctor_id", "date", "start_time", "reason"]
-      }
+      },
+      "responseFields": [
+        "status",
+        "appointment_ref",
+        "appointment_ref_spoken",
+        "message"
+      ]
     },
     {
       "name": "endOfCall",

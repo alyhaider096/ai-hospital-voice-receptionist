@@ -99,7 +99,7 @@ def test_check_availability_returns_next_options_for_past_date(
     data = response.json()
     assert data["available_slots"] == []
     assert data["requested_date_was_past"] is True
-    assert "past" in data["message"]
+    assert "could not use" in data["message"]
     assert data["next_available_dates"]
     assert data["earliest_available_start_time"]
 
@@ -234,10 +234,14 @@ def test_availability_booking_idempotency_and_double_booking(
     assert booking.status_code == 200
     first_ref = booking.json()["appointment_ref"]
     assert first_ref.startswith("APT-")
+    assert booking.json()["appointment_ref_spoken"] == " ".join(
+        "dash" if char == "-" else char for char in first_ref
+    )
 
     retry = client.post("/vapi/tools/book-appointment", headers=vapi_headers, json=booking_payload)
     assert retry.status_code == 200
     assert retry.json()["appointment_ref"] == first_ref
+    assert retry.json()["appointment_ref_spoken"] == booking.json()["appointment_ref_spoken"]
 
     double_booking_payload = {**booking_payload, "vapi_call_id": "call-002"}
     double_booking = client.post(

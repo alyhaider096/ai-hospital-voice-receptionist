@@ -41,6 +41,10 @@ def _next_appointment_ref(db: Session) -> str:
     return f"APT-{number}"
 
 
+def _spoken_reference(appointment_ref: str) -> str:
+    return " ".join("dash" if char == "-" else char for char in appointment_ref)
+
+
 def book_appointment(
     db: Session,
     *,
@@ -69,6 +73,7 @@ def book_appointment(
         return BookAppointmentResponse(
             status=existing.status,
             appointment_ref=existing.appointment_ref,
+            appointment_ref_spoken=_spoken_reference(existing.appointment_ref),
             message="Appointment confirmed.",
         )
 
@@ -107,6 +112,6 @@ def book_appointment(
     return BookAppointmentResponse(
         status="booked",
         appointment_ref=appointment.appointment_ref,
+        appointment_ref_spoken=_spoken_reference(appointment.appointment_ref),
         message="Appointment confirmed.",
     )
-

@@ -213,6 +213,15 @@ Input schema:
 }
 ```
 
+Important response fields:
+
+```txt
+status                 -> booked
+appointment_ref        -> official reference, for dashboard/system use
+appointment_ref_spoken -> speech-friendly reference; read this to the caller
+message                -> confirmation message
+```
+
 ## Assistant Prompt Draft
 
 ```txt
@@ -235,7 +244,7 @@ For normal appointment booking:
 6. Ask for patient name and phone number.
 7. Repeat doctor, date, and time for confirmation.
 8. Only after the patient confirms, use bookAppointment.
-9. Read the appointment reference clearly.
+9. Read appointment_ref_spoken clearly to the caller.
 
 If checkAvailability returns no available_slots:
 1. First read and follow the returned message field.
