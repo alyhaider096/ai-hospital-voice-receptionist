@@ -1,6 +1,6 @@
 from datetime import date, datetime, time
 
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field
 
 
 class MatchDoctorRequest(BaseModel):
@@ -52,7 +52,7 @@ class BookAppointmentRequest(BaseModel):
     phone: str = Field(min_length=7, max_length=30)
     doctor_id: str
     date: date
-    start_time: time
+    start_time: time = Field(validation_alias=AliasChoices("start_time", "time"))
     reason: str = Field(min_length=2, max_length=1000)
     vapi_call_id: str | None = None
 
